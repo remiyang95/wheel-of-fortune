@@ -182,6 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
             options = [];
             currentRotation = 0;
             updateOptionsList();
+            // Clear the canvas and redraw to show empty state
+            const ctx = wheelCanvas.getContext('2d');
+            ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+            // Redraw the wheel (which will be empty)
             drawWheel();
         }
     }
