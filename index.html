@@ -5,6 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wheel of Fortune</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCUnhbRm7hwczO4ekNYLsdWCcHoEuwgQtI",
+            authDomain: "wheel-of-fortune-b65e0.firebaseapp.com",
+            projectId: "wheel-of-fortune-b65e0",
+            storageBucket: "wheel-of-fortune-b65e0.appspot.com",
+            messagingSenderId: "1040630855181",
+            appId: "1:1040630855181:web:cc856f86dea25068bf0744",
+            measurementId: "G-J8CQ4LHWQ0"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        // Sign in anonymously
+        auth.signInAnonymously()
+            .then(() => {
+                console.log('Signed in anonymously');
+                // Enable offline persistence after successful auth
+                return firebase.firestore().enablePersistence();
+            })
+            .catch((err) => {
+                console.error('Authentication or persistence error:', err);
+                if (err.code === 'failed-precondition') {
+                    console.warn('Offline persistence can only be enabled in one tab at a time.');
+                } else if (err.code === 'unimplemented') {
+                    console.warn('The current browser doesn\'t support offline persistence.');
+                }
+            });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -21,11 +58,51 @@
                 <input type="text" id="optionInput" placeholder="Enter an option">
                 <button id="addBtn">Add Option</button>
             </div>
-            <div id="optionsList"></div>
-            <button id="spinBtn">Spin the Wheel!</button>
-            <button id="clearBtn">Clear All</button>
+            <div class="options-container">
+                <div id="optionsList" class="options-list"></div>
+                <a href="#" id="clearBtn" class="clear-link">Clear All</a>
+            </div>
+            <div class="button-group">
+                <button id="spinBtn">Spin the Wheel!</button>
+            </div>
+            <hr class="divider">
+            <div class="save-wheel-row">
+                <div class="input-wrapper">
+                    <input type="text" id="wheelName" placeholder="Name your wheel">
+                    <div id="wheelNameError" class="error-message"></div>
+                </div>
+                <button id="saveWheelBtn" class="save-btn">Save</button>
+            </div>
+            <div id="saveSuccessMessage" class="save-success-message"></div>
+            <div class="saved-wheels">
+                <h3>Saved Wheels</h3>
+                <div id="savedWheelsList" class="wheels-list">
+                    <!-- Wheels will be listed here -->
+                </div>
+            </div>
         </div>
     </div>
+    
+    <!-- Custom Modal -->
+    <div id="customModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Title</h3>
+                <button id="closeModal">&times;</button>
+            </div>
+            <div id="modalBody" class="modal-body">
+                <p id="modalMessage">Message goes here</p>
+                <div id="modalInputContainer" style="display: none; margin-top: 15px;">
+                    <input type="text" id="modalInput" class="modal-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="modalCancel" class="modal-btn modal-btn-cancel">Cancel</button>
+                <button id="modalConfirm" class="modal-btn modal-btn-confirm">OK</button>
+            </div>
+        </div>
+    </div>
+    
     <script src="script.js"></script>
 </body>
 </html>

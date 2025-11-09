@@ -1,12 +1,146 @@
+// This will be our custom modal implementation
 document.addEventListener('DOMContentLoaded', () => {
+    // Hide Clear All link by default
+    const clearLink = document.getElementById('clearBtn');
+    if (clearLink) {
+        clearLink.style.display = 'none';
+    }
+    // Custom Modal Implementation
+    class CustomModal {
+        constructor() {
+            this.modal = document.getElementById('customModal');
+            this.title = document.getElementById('modalTitle');
+            this.message = document.getElementById('modalMessage');
+            this.input = document.getElementById('modalInput');
+            this.inputContainer = document.getElementById('modalInputContainer');
+            this.confirmBtn = document.getElementById('modalConfirm');
+            this.cancelBtn = document.getElementById('modalCancel');
+            this.closeBtn = document.getElementById('closeModal');
+            
+            // Set up event listeners
+            this.confirmBtn.addEventListener('click', () => this.hide(true));
+            this.cancelBtn.addEventListener('click', () => this.hide(false));
+            this.closeBtn.addEventListener('click', () => this.hide(false));
+            this.modal.addEventListener('click', (e) => {
+                if (e.target === this.modal) this.hide(false);
+            });
+            
+            // Store the current resolve function
+            this.resolvePromise = null;
+        }
+        
+        show(options = {}) {
+            const { 
+                title = 'Alert', 
+                message = '', 
+                showInput = false, 
+                inputValue = '',
+                confirmText = 'OK',
+                cancelText = 'Cancel',
+                showCancel = true,
+                confirmButtonClass = '',
+                cancelButtonClass = ''
+            } = options;
+            
+            this.title.textContent = title;
+            this.title.style.display = title ? 'block' : 'none';
+            this.message.textContent = message;
+            this.inputContainer.style.display = showInput ? 'block' : 'none';
+            this.input.value = inputValue;
+            this.confirmBtn.textContent = confirmText;
+            if (confirmButtonClass) {
+                this.confirmBtn.className = 'modal-btn modal-btn-confirm ' + confirmButtonClass;
+            } else {
+                this.confirmBtn.className = 'modal-btn modal-btn-confirm';
+            }
+            
+            if (cancelButtonClass) {
+                this.cancelBtn.className = 'modal-btn modal-btn-cancel ' + cancelButtonClass;
+            } else {
+                this.cancelBtn.className = 'modal-btn modal-btn-cancel';
+            }
+            this.cancelBtn.textContent = cancelText;
+            this.cancelBtn.style.display = showCancel ? 'block' : 'none';
+            
+            if (confirmButtonClass) {
+                this.confirmBtn.classList.add(confirmButtonClass);
+            }
+            
+            // Show the modal
+            this.modal.classList.add('show');
+            
+            // Focus the input if shown, otherwise focus the confirm button
+            if (showInput) {
+                this.input.focus();
+            } else {
+                this.confirmBtn.focus();
+            }
+            
+            // Return a promise that resolves with the result
+            return new Promise((resolve) => {
+                this.resolvePromise = resolve;
+            });
+        }
+        
+        hide(result) {
+            this.modal.classList.remove('show');
+            if (this.resolvePromise) {
+                if (this.inputContainer.style.display === 'block') {
+                    this.resolvePromise(result ? this.input.value : null);
+                } else {
+                    this.resolvePromise(result);
+                }
+                this.resolvePromise = null;
+            }
+        }
+    }
+
+    // Create a global modal instance
+    const modal = new CustomModal();
+
+    // Replace browser dialogs
+    window.alert = (message) => {
+        return modal.show({
+            title: 'Alert',
+            message,
+            showCancel: false
+        });
+    };
+
+    window.confirm = (message) => {
+        return modal.show({
+            title: 'Confirm',
+            message,
+            showCancel: true
+        });
+    };
+
+    window.prompt = (message, defaultValue = '') => {
+        return modal.show({
+            title: 'Prompt',
+            message,
+            showInput: true,
+            inputValue: defaultValue,
+            showCancel: true
+        });
+    };
+
     // DOM Elements
     const wheelCanvas = document.getElementById('wheelCanvas');
     const ctx = wheelCanvas.getContext('2d');
     const optionInput = document.getElementById('optionInput');
     const addBtn = document.getElementById('addBtn');
     const spinBtn = document.getElementById('spinBtn');
-    const clearBtn = document.getElementById('clearBtn');
+    const clearBtn = document.getElementById('clearBtn'); // This line should already exist
     const optionsList = document.getElementById('optionsList');
+    const saveWheelBtn = document.getElementById('saveWheelBtn');
+    const loadWheelBtn = document.getElementById('loadWheelBtn');
+    const deleteWheelBtn = document.getElementById('deleteWheelBtn');
+    const wheelNameInput = document.getElementById('wheelName');
+    const savedWheelsList = document.getElementById('savedWheelsList');
+    
+    // Reference to the wheels collection in Firestore
+    const wheelsRef = db.collection('wheels');
     
     // State
     let options = [];
@@ -18,6 +152,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const size = Math.min(window.innerWidth * 0.9, 500);
         wheelCanvas.width = size;
         wheelCanvas.height = size;
+        
+        // Get the context
+        const ctx = wheelCanvas.getContext('2d');
+        ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+        
+        // Initialize with empty wheel
         drawWheel();
     }
     
@@ -41,10 +181,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Draw segments
         const segmentAngle = (2 * Math.PI) / options.length;
         
+        // Calculate the initial rotation offset
+    // For a single option, we want it at the right side (3 o'clock position)
+    // For multiple options, we'll start at the top (12 o'clock) for better distribution
+    const initialRotation = options.length === 1 ? 0 : -Math.PI / 2;
+    
+    // For a single option, we need to rotate 180 degrees to get the text right-side up at 3 o'clock
+    const textAngleOffset = options.length === 1 ? Math.PI : 0;
+        
         options.forEach((option, index) => {
-            // Calculate angles
-            const startAngle = index * segmentAngle + currentRotation;
-            const endAngle = (index + 1) * segmentAngle + currentRotation;
+            // Calculate angles with initial rotation
+            const startAngle = index * segmentAngle + currentRotation + initialRotation;
+            const endAngle = (index + 1) * segmentAngle + currentRotation + initialRotation;
             
             // Draw segment
             ctx.beginPath();
@@ -60,19 +208,68 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Add text
             ctx.save();
-            ctx.translate(centerX, centerY);
-            ctx.rotate(startAngle + segmentAngle / 2);
+            // Position text at 20% of the radius from the center
+            const textRadius = radius * 0.2;
             
-            // Text settings
+            // Calculate text angle at the center of the segment
+            // Apply textAngleOffset to ensure single option is at 0 degrees (right side)
+            const textAngle = startAngle + (endAngle - startAngle) / 2 + textAngleOffset;
+            
+            // Always position text along the radius
+            const textX = centerX + Math.cos(textAngle) * textRadius;
+            const textY = centerY + Math.sin(textAngle) * textRadius;
+            
+            // Set text rotation to be parallel to the radius (pointing outward)
+            // No flipping - text will follow the radius line exactly
+            const textRotation = textAngle;
+            
+            // Rotate text to be readable
+            ctx.translate(textX, textY);
+            
+            // Apply the rotation (no flipping)
+            ctx.rotate(textRotation);
+            
+            // Style text
             ctx.fillStyle = '#2c3e50';
-            ctx.font = `bold ${Math.max(12, Math.min(16, radius / 10))}px Arial`;
-            ctx.textAlign = 'left';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'left';  // Align text to the left (toward the center of the wheel)
             ctx.textBaseline = 'middle';
             
-            // Draw text along the arc
-            const text = option.length > 10 ? option.substring(0, 8) + '...' : option;
-            ctx.fillText(text, radius * 0.4, 0);
+            // Truncate text if it's too long
+            let displayText = option;
+            const maxWidth = radius * 0.8; // 80% of radius
+            const ellipsis = '...';
             
+            // Measure the text width
+            let textWidth = ctx.measureText(displayText).width;
+            
+            // Debug: Log text width vs max width
+            console.log(`Text: "${displayText}"`);
+            console.log(`Text width: ${textWidth}px`);
+            console.log(`Max width (80% of radius): ${maxWidth}px`);
+            console.log(`Text width is ${(textWidth / maxWidth * 100).toFixed(1)}% of max width`);
+            
+            // If text is too wide, truncate it with ellipsis
+            if (textWidth > maxWidth) {
+                // Calculate how many characters we can fit (approximate)
+                // Subtract 5 more characters to ensure better fit
+                const avgCharWidth = textWidth / displayText.length;
+                let charsToKeep = Math.floor(maxWidth / avgCharWidth) - ellipsis.length - 5;
+                
+                // Ensure we keep at least 1 character plus ellipsis
+                charsToKeep = Math.max(1, charsToKeep);
+                
+                // Truncate and add ellipsis
+                displayText = displayText.substring(0, charsToKeep) + ellipsis;
+                
+                // Final check and adjustment if still too wide
+                while (ctx.measureText(displayText).width > maxWidth && displayText.length > ellipsis.length) {
+                    displayText = displayText.substring(0, displayText.length - ellipsis.length - 1) + ellipsis;
+                }
+            }
+            
+            // Draw the (possibly truncated) text
+            ctx.fillText(displayText, 0, 0);
             ctx.restore();
         });
         
@@ -89,32 +286,48 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add option to the list
     function addOption() {
         const option = optionInput.value.trim();
-        if (option && !options.includes(option)) {
+        if (option) {
             options.push(option);
             optionInput.value = '';
             updateOptionsList();
             drawWheel();
-        } else if (options.includes(option)) {
-            alert('This option already exists!');
+            updateAddButtonState();
         }
         optionInput.focus();
+    }
+    
+    // Update the add button state based on input field content
+    function updateAddButtonState() {
+        const inputText = optionInput.value.trim();
+        addBtn.disabled = inputText === '';
     }
     
     // Update the options list in the UI
     function updateOptionsList() {
         optionsList.innerHTML = '';
+        
+        // Show/hide clear link based on number of options
+        const clearLink = document.getElementById('clearBtn');
+        if (clearLink) {
+            clearLink.style.display = options.length > 0 ? 'block' : 'none';
+            // Ensure the clear link is properly hidden when there are no options
+            if (options.length === 0) {
+                clearLink.style.display = 'none';
+            }
+        }
+        
         options.forEach((option, index) => {
             const optionElement = document.createElement('div');
-            optionElement.className = 'option-tag';
+            optionElement.className = 'option-item';
             optionElement.innerHTML = `
                 ${option}
-                <button class="remove-option" data-index="${index}">&times;</button>
+                <button class="option-remove" data-index="${index}">&times;</button>
             `;
             optionsList.appendChild(optionElement);
         });
         
         // Add event listeners to remove buttons
-        document.querySelectorAll('.remove-option').forEach(btn => {
+        document.querySelectorAll('.option-remove').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const index = parseInt(btn.dataset.index);
@@ -176,28 +389,243 @@ document.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(animate);
     }
     
+    // Save wheel to Firestore
+    function showError(message) {
+        const errorElement = document.getElementById('wheelNameError');
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+    }
+    
+    async function saveWheel() {
+        const wheelName = wheelNameInput.value.trim();
+        
+        // Clear any previous messages
+        document.getElementById('wheelNameError').classList.remove('show');
+        
+        if (!wheelName) {
+            showError('Please enter a name for your wheel');
+            return;
+        }
+        
+        if (options.length === 0) {
+            showError('Please add at least one option to the wheel');
+            return;
+        }
+        
+        try {
+            // First check if the document exists to update the timestamp
+            const docRef = wheelsRef.doc(wheelName);
+            const doc = await docRef.get();
+            
+            const wheelData = {
+                name: wheelName,
+                options: options,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            // If document doesn't exist, add createdAt
+            if (!doc.exists) {
+                wheelData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            }
+            
+            await docRef.set(wheelData);
+            
+            // Show success message
+            const successMessage = document.getElementById('saveSuccessMessage');
+            successMessage.textContent = 'Saved successfully!';
+            successMessage.classList.add('show');
+            
+            // Clear the input
+            wheelNameInput.value = '';
+            
+            // Hide the message after 3 seconds
+            setTimeout(() => {
+                successMessage.classList.remove('show');
+            }, 3000);
+            
+            await loadSavedWheelsList();
+        } catch (error) {
+            console.error('Error saving wheel:', error);
+            if (error.code === 'permission-denied') {
+                alert('Permission denied. Please check your Firestore security rules.');
+            } else {
+                alert('Error saving wheel: ' + error.message);
+            }
+        }
+    }
+    
+    // Load saved wheels list
+    async function loadSavedWheelsList() {
+        try {
+            const snapshot = await wheelsRef.orderBy('updatedAt', 'desc').get();
+            savedWheelsList.innerHTML = '';
+            
+            if (snapshot.empty) {
+                savedWheelsList.innerHTML = '<div class="no-wheels">No saved wheels yet</div>';
+                return;
+            }
+            
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const wheelItem = document.createElement('div');
+                wheelItem.className = 'wheel-item';
+                wheelItem.dataset.id = doc.id;
+                
+                wheelItem.innerHTML = `
+                    <a href="#" class="wheel-name" data-id="${doc.id}">${data.name}</a>
+                    <button class="delete-wheel" data-id="${doc.id}" title="Delete wheel">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                `;
+                
+                savedWheelsList.appendChild(wheelItem);
+            });
+            
+            // Add event listeners for the new elements
+            document.querySelectorAll('.wheel-name').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    loadWheel(link.dataset.id);
+                });
+            });
+            
+            document.querySelectorAll('.delete-wheel').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteWheel(button.dataset.id);
+                });
+            });
+            
+        } catch (error) {
+            console.error('Error loading wheels:', error);
+            savedWheelsList.innerHTML = '<div class="error">Error loading wheels. Please refresh the page.</div>';
+        }
+    }
+    
+    // Load a specific wheel
+    async function loadWheel(wheelId) {
+        try {
+            const doc = await wheelsRef.doc(wheelId).get();
+            if (doc.exists) {
+                const data = doc.data();
+                options = [...data.options];
+                currentRotation = 0;
+                
+                // Update the UI
+                updateOptionsList();
+                
+                // Ensure canvas is properly sized before drawing
+                const size = Math.min(window.innerWidth * 0.9, 500);
+                const ctx = wheelCanvas.getContext('2d');
+                ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+                
+                // Redraw the wheel with the new options
+                drawWheel();
+                
+                // Update the wheel name input
+                wheelNameInput.value = data.name;
+                
+                // Scroll to the top of the page
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+                // Show a brief highlight on the selected wheel
+                const wheelItem = document.querySelector(`.wheel-item[data-id="${wheelId}"]`);
+                if (wheelItem) {
+                    wheelItem.style.backgroundColor = '#e3f2fd';
+                    setTimeout(() => {
+                        wheelItem.style.transition = 'background-color 1s';
+                        wheelItem.style.backgroundColor = '';
+                        setTimeout(() => {
+                            wheelItem.style.transition = '';
+                        }, 1000);
+                    }, 1000);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading wheel:', error);
+            alert('Error loading wheel. Please try again.');
+        }
+    }
+    
+    // Delete a specific wheel
+    async function deleteWheel(wheelId) {
+        const confirmed = await modal.show({
+            title: '',
+            message: 'Are you sure you want to delete this wheel? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            showCancel: true,
+            confirmButtonClass: 'clear-confirm-btn',
+            cancelButtonClass: 'modal-btn-cancel'
+        });
+        
+        if (!confirmed) {
+            return;
+        }
+        
+        try {
+            await wheelsRef.doc(wheelId).delete();
+            await loadSavedWheelsList();
+        } catch (error) {
+            console.error('Error deleting wheel:', error);
+            alert('Error deleting wheel. Please try again.');
+        }
+    }
+    
     // Clear all options
-    function clearAll() {
-        if (confirm('Are you sure you want to clear all options?')) {
+    async function clearAll() {
+        // Don't show the dialog if there are no options to clear
+        if (options.length === 0) return;
+        
+        const confirmed = await modal.show({
+            title: '',
+            message: 'Are you sure you want to clear all options?',
+            confirmText: 'Clear All',
+            cancelText: 'Cancel',
+            showCancel: true,
+            confirmButtonClass: 'clear-confirm-btn',
+            cancelButtonClass: 'modal-btn-cancel'
+        });
+        
+        if (confirmed) {
             options = [];
             currentRotation = 0;
-            updateOptionsList();
-            // Clear the canvas and redraw to show empty state
+            
+            // Clear the canvas
             const ctx = wheelCanvas.getContext('2d');
             ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
-            // Redraw the wheel (which will be empty)
+            
+            // Redraw the empty wheel
             drawWheel();
+            
+            // Update the options list (this will also hide the clear link)
+            updateOptionsList();
         }
     }
     
     // Event Listeners
     addBtn.addEventListener('click', addOption);
+    optionInput.addEventListener('input', updateAddButtonState);
     optionInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addOption();
+        if (e.key === 'Enter' && optionInput.value.trim() !== '') {
+            addOption();
+        }
     });
+    
+    // Initial button state
+    updateAddButtonState();
     
     spinBtn.addEventListener('click', spinWheel);
     clearBtn.addEventListener('click', clearAll);
+    saveWheelBtn.addEventListener('click', saveWheel);
+    
+    // Load saved wheels when the page loads
+    loadSavedWheelsList();
     
     // Handle mouse move for tooltips
     wheelCanvas.addEventListener('mousemove', (e) => {
@@ -217,7 +645,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Only show tooltip if mouse is over the wheel
         if (distance < radius) {
-            let angle = Math.atan2(dy, dx) - currentRotation;
+            // Use the same initial rotation as in drawWheel()
+            const initialRotation = options.length === 1 ? 0 : -Math.PI / 2;
+            let angle = Math.atan2(dy, dx) - currentRotation - initialRotation;
             while (angle < 0) angle += Math.PI * 2;
             
             const segmentAngle = (2 * Math.PI) / options.length;
