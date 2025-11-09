@@ -1,4 +1,3 @@
-// This will be our custom modal implementation
 document.addEventListener('DOMContentLoaded', () => {
     // Hide Clear All link by default
     const clearLink = document.getElementById('clearBtn');
@@ -131,11 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const optionInput = document.getElementById('optionInput');
     const addBtn = document.getElementById('addBtn');
     const spinBtn = document.getElementById('spinBtn');
-    const clearBtn = document.getElementById('clearBtn'); // This line should already exist
+    const clearBtn = document.getElementById('clearBtn');
     const optionsList = document.getElementById('optionsList');
     const saveWheelBtn = document.getElementById('saveWheelBtn');
-    const loadWheelBtn = document.getElementById('loadWheelBtn');
-    const deleteWheelBtn = document.getElementById('deleteWheelBtn');
     const wheelNameInput = document.getElementById('wheelName');
     const savedWheelsList = document.getElementById('savedWheelsList');
     
@@ -577,15 +574,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Clear all options
     async function clearAll() {
-        // Don't show the dialog if there are no options to clear
         if (options.length === 0) return;
         
         const confirmed = await modal.show({
-            title: '',
-            message: 'Are you sure you want to clear all options?',
-            confirmText: 'Clear All',
+            title: 'Create New Wheel',
+            message: 'Creating a new wheel will clear the existing options. Are you sure you want to continue?',
+            confirmText: 'Continue',
             cancelText: 'Cancel',
             showCancel: true,
             confirmButtonClass: 'clear-confirm-btn',
@@ -595,15 +590,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirmed) {
             options = [];
             currentRotation = 0;
-            
-            // Clear the canvas
             const ctx = wheelCanvas.getContext('2d');
             ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
-            
-            // Redraw the empty wheel
             drawWheel();
-            
-            // Update the options list (this will also hide the clear link)
             updateOptionsList();
         }
     }
@@ -620,8 +609,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial button state
     updateAddButtonState();
     
+    // Set up clear button event listener
+    if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            clearAll();
+        });
+    }
+    
+    // Set up other event listeners
     spinBtn.addEventListener('click', spinWheel);
-    clearBtn.addEventListener('click', clearAll);
     saveWheelBtn.addEventListener('click', saveWheel);
     
     // Load saved wheels when the page loads
