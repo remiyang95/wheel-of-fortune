@@ -240,12 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Measure the text width
             let textWidth = ctx.measureText(displayText).width;
             
-            // Debug: Log text width vs max width
-            console.log(`Text: "${displayText}"`);
-            console.log(`Text width: ${textWidth}px`);
-            console.log(`Max width (80% of radius): ${maxWidth}px`);
-            console.log(`Text width is ${(textWidth / maxWidth * 100).toFixed(1)}% of max width`);
-            
             // If text is too wide, truncate it with ellipsis
             if (textWidth > maxWidth) {
                 // Calculate how many characters we can fit (approximate)
@@ -442,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             await loadSavedWheelsList();
         } catch (error) {
-            console.error('Error saving wheel:', error);
+            // Error handled by UI feedback
             if (error.code === 'permission-denied') {
                 alert('Permission denied. Please check your Firestore security rules.');
             } else {
@@ -499,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
         } catch (error) {
-            console.error('Error loading wheels:', error);
+            // Error handled by UI feedback
             savedWheelsList.innerHTML = '<div class="error">Error loading wheels. Please refresh the page.</div>';
         }
     }
@@ -544,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (error) {
-            console.error('Error loading wheel:', error);
+            // Error handled by UI feedback
             alert('Error loading wheel. Please try again.');
         }
     }
@@ -569,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await wheelsRef.doc(wheelId).delete();
             await loadSavedWheelsList();
         } catch (error) {
-            console.error('Error deleting wheel:', error);
+            // Error handled by UI feedback
             alert('Error deleting wheel. Please try again.');
         }
     }
